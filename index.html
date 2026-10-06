@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="dark" />
+  <title>ChipWatch — Live Semiconductor Stocks</title>
+  <style>
+    :root {
+      --bg: #070a08;
+      --panel: #0d120f;
+      --panel-2: #101712;
+      --border: rgba(59, 255, 139, 0.58);
+      --border-soft: rgba(59, 255, 139, 0.18);
+      --green: #3bff8b;
+      --green-2: #78ffad;
+      --text: #f1f7f3;
+      --muted: #8da096;
+      --red: #ff5e73;
+      --yellow: #ffd166;
+      --shadow: 0 10px 30px rgba(0,0,0,.34), 0 0 18px rgba(59,255,139,.06);
+      --radius: 20px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { min-height: 100%; }
+
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 15% -10%, rgba(59,255,139,.09), transparent 31rem),
+        radial-gradient(circle at 95% 0%, rgba(59,255,139,.045), transparent 25rem),
+        var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button, input { font: inherit; }
+
+    .app {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 44px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+
+    .brand-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .logo {
+      width: 43px;
+      height: 43px;
+      flex: 0 0 43px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background:
+        linear-gradient(145deg, rgba(59,255,139,.18), rgba(59,255,139,.03)),
+        var(--panel);
+      box-shadow: var(--shadow);
+      display: grid;
+      place-items: center;
+      color: var(--green);
+    }
+
+    .logo svg { width: 23px; height: 23px; }
+
+    .brand {
+      font-weight: 800;
+      font-size: 1.18rem;
+      letter-spacing: -.02em;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: .82rem;
+      margin-top: 2px;
+    }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+    }
+
+    .btn {
+      border: 1px solid var(--border-soft);
+      background: rgba(15, 22, 17, .9);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 10px 13px;
+      cursor: pointer;
+      transition: .18s ease;
+      box-shadow: 0 6px 18px rgba(0,0,0,.18);
+    }
+
+    .btn:hover {
+      border-color: var(--border);
+      transform: translateY(-1px);
+    }
+
+    .btn.primary {
+      color: #031008;
+      background: var(--green);
+      border-color: var(--green);
+      font-weight: 750;
+    }
+
+    .hero {
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      background:
+        linear-gradient(140deg, rgba(59,255,139,.075), transparent 34%),
+        rgba(11, 16, 13, .88);
+      box-shadow: var(--shadow);
+      padding: 24px;
+      margin-bottom: 18px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      width: 230px;
+      height: 230px;
+      border-radius: 999px;
+      right: -100px;
+      top: -120px;
+      background: rgba(59,255,139,.07);
+      filter: blur(1px);
+      pointer-events: none;
+    }
+
+    .hero-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 18px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-size: clamp(1.65rem, 4vw, 2.55rem);
+      letter-spacing: -.045em;
+      line-height: 1.05;
+    }
+
+    .hero h1 span { color: var(--green); }
+
+    .hero p {
+      color: var(--muted);
+      margin: 10px 0 0;
+      max-width: 650px;
+      line-height: 1.55;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--border-soft);
+      border-radius: 999px;
+      padding: 8px 11px;
+      background: rgba(5,10,7,.45);
+      white-space: nowrap;
+      font-size: .8rem;
+      color: var(--muted);
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+      box-shadow: 0 0 0 4px rgba(141,160,150,.08);
+    }
+
+    .dot.live {
+      background: var(--green);
+      box-shadow: 0 0 0 4px rgba(59,255,139,.1), 0 0 10px rgba(59,255,139,.5);
+    }
+
+    .dot.warn {
+      background: var(--yellow);
+      box-shadow: 0 0 0 4px rgba(255,209,102,.09);
+    }
+
+    .toolbar {
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(255,255,255,.055);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: .82rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    .toolbar-group {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      flex-wrap: wrap;
+    }
+
+    .pill {
+      border: 1px solid rgba(255,255,255,.075);
+      border-radius: 999px;
+      padding: 7px 10px;
+      background: rgba(255,255,255,.025);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background:
+        linear-gradient(155deg, rgba(59,255,139,.045), transparent 38%),
+        var(--panel);
+      box-shadow: var(--shadow);
+      padding: 20px;
+      min-height: 235px;
+      position: relative;
+      overflow: hidden;
+      transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(59,255,139,.82);
+      box-shadow: 0 14px 34px rgba(0,0,0,.38), 0 0 20px rgba(59,255,139,.08);
+    }
+
+    .card.flash-up { animation: flashUp .7s ease; }
+    .card.flash-down { animation: flashDown .7s ease; }
+
+    @keyframes flashUp {
+      0%,100% { background-color: transparent; }
+      35% { background-color: rgba(59,255,139,.075); }
+    }
+
+    @keyframes flashDown {
+      0%,100% { background-color: transparent; }
+      35% { background-color: rgba(255,94,115,.065); }
+    }
+
+    .card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .ticker {
+      font-size: 1.15rem;
+      font-weight: 850;
+      letter-spacing: .025em;
+    }
+
+    .company {
+      margin-top: 4px;
+      font-size: .8rem;
+      color: var(--muted);
+    }
+
+    .live-badge {
+      color: var(--green-2);
+      border: 1px solid rgba(59,255,139,.25);
+      background: rgba(59,255,139,.055);
+      padding: 6px 8px;
+      border-radius: 999px;
+      font-size: .7rem;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .price {
+      margin-top: 24px;
+      font-size: clamp(2.1rem, 5vw, 3rem);
+      font-weight: 860;
+      letter-spacing: -.05em;
+      line-height: 1;
+    }
+
+    .change-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 10px;
+      font-size: .9rem;
+    }
+
+    .positive { color: var(--green); }
+    .negative { color: var(--red); }
+    .neutral { color: var(--muted); }
+
+    .mini-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 9px;
+      margin-top: 22px;
+    }
+
+    .metric {
+      padding: 10px;
+      border: 1px solid rgba(255,255,255,.06);
+      border-radius: 11px;
+      background: rgba(255,255,255,.018);
+      min-width: 0;
+    }
+
+    .metric-label {
+      color: var(--muted);
+      font-size: .65rem;
+      text-transform: uppercase;
+      letter-spacing: .065em;
+    }
+
+    .metric-value {
+      margin-top: 5px;
+      font-size: .84rem;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .updated {
+      position: absolute;
+      right: 18px;
+      bottom: 10px;
+      color: rgba(141,160,150,.58);
+      font-size: .68rem;
+    }
+
+    .footer {
+      color: rgba(141,160,150,.75);
+      font-size: .75rem;
+      line-height: 1.5;
+      text-align: center;
+      margin-top: 18px;
+    }
+
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.72);
+      backdrop-filter: blur(8px);
+      z-index: 50;
+      padding: 18px;
+      place-items: center;
+    }
+
+    .modal-backdrop.open { display: grid; }
+
+    .modal {
+      width: min(520px, 100%);
+      border: 1px solid var(--border);
+      border-radius: 21px;
+      background: #0c110e;
+      box-shadow: 0 22px 70px rgba(0,0,0,.62), 0 0 25px rgba(59,255,139,.08);
+      padding: 22px;
+    }
+
+    .modal h2 {
+      margin: 0 0 8px;
+      letter-spacing: -.025em;
+    }
+
+    .modal p {
+      color: var(--muted);
+      font-size: .88rem;
+      line-height: 1.55;
+      margin: 0 0 16px;
+    }
+
+    .input {
+      width: 100%;
+      background: #070b08;
+      color: var(--text);
+      border: 1px solid rgba(59,255,139,.32);
+      border-radius: 12px;
+      outline: none;
+      padding: 12px 13px;
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,.3);
+    }
+
+    .input:focus {
+      border-color: var(--green);
+      box-shadow: 0 0 0 3px rgba(59,255,139,.08);
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 9px;
+      margin-top: 15px;
+    }
+
+    .error-banner {
+      display: none;
+      margin-bottom: 16px;
+      border: 1px solid rgba(255,94,115,.34);
+      background: rgba(255,94,115,.07);
+      color: #ff9cab;
+      border-radius: 14px;
+      padding: 11px 13px;
+      font-size: .82rem;
+      line-height: 1.4;
+    }
+
+    .error-banner.show { display: block; }
+
+    @media (max-width: 760px) {
+      .app { width: min(100% - 20px, 1180px); padding-top: 16px; }
+      .topbar { align-items: flex-start; }
+      .actions .btn .wide { display: none; }
+      .grid { grid-template-columns: 1fr; }
+      .hero { padding: 19px; border-radius: 20px; }
+      .hero-row { flex-direction: column; }
+      .mini-grid { grid-template-columns: repeat(2, 1fr); }
+      .card { min-height: 265px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand-wrap">
+        <div class="logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M4 18.5V14l4-4 3 3 6-7 3 2.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M16 6h4v4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div>
+          <div class="brand">ChipWatch</div>
+          <div class="subtitle">Live semiconductor watchlist</div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn" id="refreshBtn" title="Refresh full quotes">↻ <span class="wide">Refresh</span></button>
+        <button class="btn primary" id="settingsBtn">API Key</button>
+      </div>
+    </header>
+
+    <div class="error-banner" id="errorBanner"></div>
+
+    <section class="hero">
+      <div class="hero-row">
+        <div>
+          <h1>Semis, <span>live.</span></h1>
+          <p>Focused tracking for NVIDIA, AMD, Broadcom and Micron with streaming last-trade prices and session quote data.</p>
+        </div>
+
+        <div class="status" id="connectionStatus">
+          <span class="dot" id="connectionDot"></span>
+          <span id="connectionText">API key needed</span>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <div class="toolbar-group">
+          <span class="pill" id="marketPill">Market: checking…</span>
+          <span class="pill">Source: Finnhub</span>
+        </div>
+        <div class="toolbar-group">
+          <span id="lastRefresh">No quote refresh yet</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid" id="stockGrid"></section>
+
+    <div class="footer">
+      Prices are for personal monitoring and may reflect the data entitlements of your API plan. This dashboard is not investment advice.
+    </div>
+  </main>
+
+  <div class="modal-backdrop" id="modalBackdrop" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal">
+      <h2 id="modalTitle">Connect Finnhub</h2>
+      <p>
+        Paste a free Finnhub API key. It is stored only in this browser via <code>localStorage</code>.
+        For a local personal dashboard this keeps setup simple; do not publish this page with a key hard-coded into it.
+      </p>
+      <input class="input" id="apiKeyInput" type="password" autocomplete="off" placeholder="Your Finnhub API key" />
+      <div class="modal-actions">
+        <button class="btn" id="clearKeyBtn">Clear key</button>
+        <button class="btn primary" id="saveKeyBtn">Save & Connect</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const STOCKS = [
+        { symbol: "NVDA", name: "NVIDIA Corp." },
+        { symbol: "AMD",  name: "Advanced Micro Devices" },
+        { symbol: "AVGO", name: "Broadcom Inc." },
+        { symbol: "MU",   name: "Micron Technology" }
+      ];
+
+      const API_BASE = "https://finnhub.io/api/v1";
+      const STORAGE_KEY = "chipwatch_finnhub_key";
+      const state = {
+        apiKey: localStorage.getItem(STORAGE_KEY) || "",
+        socket: null,
+        reconnectTimer: null,
+        reconnectAttempts: 0,
+        refreshTimer: null,
+        quotes: {},
+        lastTrade: {},
+        refreshing: false
+      };
+
+      const grid = document.getElementById("stockGrid");
+      const modal = document.getElementById("modalBackdrop");
+      const apiKeyInput = document.getElementById("apiKeyInput");
+      const errorBanner = document.getElementById("errorBanner");
+      const connectionDot = document.getElementById("connectionDot");
+      const connectionText = document.getElementById("connectionText");
+      const lastRefresh = document.getElementById("lastRefresh");
+      const marketPill = document.getElementById("marketPill");
+
+      function money(v) {
+        const n = Number(v);
+        if (!Number.isFinite(n)) return "—";
+        return n.toLocaleString("en-US", {
+          style: "currency",
+          currency: "USD",
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2
+        });
+      }
+
+      function signedMoney(v) {
+        const n = Number(v);
+        if (!Number.isFinite(n)) return "—";
+        return `${n >= 0 ? "+" : "-"}$${Math.abs(n).toFixed(2)}`;
+      }
+
+      function signedPct(v) {
+        const n = Number(v);
+        if (!Number.isFinite(n)) return "—";
+        return `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`;
+      }
+
+      function timeText(ts) {
+        if (!ts) return "—";
+        const d = new Date(ts > 1e12 ? ts : ts * 1000);
+        if (Number.isNaN(d.getTime())) return "—";
+        return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" });
+      }
+
+      function setConnection(text, type = "idle") {
+        connectionText.textContent = text;
+        connectionDot.className = "dot" + (type === "live" ? " live" : type === "warn" ? " warn" : "");
+      }
+
+      function setError(msg = "") {
+        errorBanner.textContent = msg;
+        errorBanner.classList.toggle("show", Boolean(msg));
+      }
+
+      function marketState() {
+        const now = new Date();
+        const nyParts = new Intl.DateTimeFormat("en-US", {
+          timeZone: "America/New_York",
+          weekday: "short",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false
+        }).formatToParts(now).reduce((acc, p) => (acc[p.type] = p.value, acc), {});
+
+        const day = nyParts.weekday;
+        const minutes = Number(nyParts.hour) * 60 + Number(nyParts.minute);
+        const weekday = !["Sat", "Sun"].includes(day);
+        const pre = weekday && minutes >= 240 && minutes < 570;
+        const regular = weekday && minutes >= 570 && minutes < 960;
+        const after = weekday && minutes >= 960 && minutes < 1200;
+
+        if (regular) return "Market: Regular session";
+        if (pre) return "Market: Pre-market";
+        if (after) return "Market: After-hours";
+        return "Market: Closed";
+      }
+
+      function updateMarketState() {
+        marketPill.textContent = marketState();
+      }
+
+      function cardTemplate(stock) {
+        return `
+          <article class="card" id="card-${stock.symbol}">
+            <div class="card-head">
+              <div>
+                <div class="ticker">${stock.symbol}</div>
+                <div class="company">${stock.name}</div>
+              </div>
+              <div class="live-badge">Live</div>
+            </div>
+
+            <div class="price" id="price-${stock.symbol}">—</div>
+
+            <div class="change-row">
+              <span class="neutral" id="change-${stock.symbol}">—</span>
+              <span class="neutral" id="pct-${stock.symbol}">—</span>
+            </div>
+
+            <div class="mini-grid">
+              <div class="metric">
+                <div class="metric-label">Open</div>
+                <div class="metric-value" id="open-${stock.symbol}">—</div>
+              </div>
+              <div class="metric">
+                <div class="metric-label">High</div>
+                <div class="metric-value" id="high-${stock.symbol}">—</div>
+              </div>
+              <div class="metric">
+                <div class="metric-label">Low</div>
+                <div class="metric-value" id="low-${stock.symbol}">—</div>
+              </div>
+              <div class="metric">
+                <div class="metric-label">Prev close</div>
+                <div class="metric-value" id="prev-${stock.symbol}">—</div>
+              </div>
+            </div>
+
+            <div class="updated" id="updated-${stock.symbol}">Waiting for data</div>
+          </article>
+        `;
+      }
+
+      function renderCards() {
+        grid.innerHTML = STOCKS.map(cardTemplate).join("");
+      }
+
+      function renderQuote(symbol, quote, source = "REST") {
+        if (!quote) return;
+
+        const previousDisplayed = Number(document.getElementById(`price-${symbol}`).dataset.price);
+        const current = Number(quote.c);
+        const change = Number(quote.d);
+        const pct = Number(quote.dp);
+
+        if (Number.isFinite(current) && current > 0) {
+          const priceEl = document.getElementById(`price-${symbol}`);
+          priceEl.textContent = money(current);
+          priceEl.dataset.price = current;
+
+          if (Number.isFinite(previousDisplayed) && previousDisplayed !== current) {
+            const card = document.getElementById(`card-${symbol}`);
+            const cls = current > previousDisplayed ? "flash-up" : "flash-down";
+            card.classList.remove("flash-up", "flash-down");
+            void card.offsetWidth;
+            card.classList.add(cls);
+          }
+        }
+
+        const directionClass = change > 0 ? "positive" : change < 0 ? "negative" : "neutral";
+        const changeEl = document.getElementById(`change-${symbol}`);
+        const pctEl = document.getElementById(`pct-${symbol}`);
+        changeEl.className = directionClass;
+        pctEl.className = directionClass;
+        changeEl.textContent = signedMoney(change);
+        pctEl.textContent = signedPct(pct);
+
+        document.getElementById(`open-${symbol}`).textContent = money(quote.o);
+        document.getElementById(`high-${symbol}`).textContent = money(quote.h);
+        document.getElementById(`low-${symbol}`).textContent = money(quote.l);
+        document.getElementById(`prev-${symbol}`).textContent = money(quote.pc);
+        document.getElementById(`updated-${symbol}`).textContent = `${source} • ${timeText(quote.t || Date.now())}`;
+      }
+
+      function renderTrade(symbol, price, timestamp) {
+        const base = state.quotes[symbol] || {};
+        const prevClose = Number(base.pc);
+        const p = Number(price);
+        if (!Number.isFinite(p) || p <= 0) return;
+
+        const d = Number.isFinite(prevClose) && prevClose > 0 ? p - prevClose : Number(base.d);
+        const dp = Number.isFinite(prevClose) && prevClose > 0 ? (d / prevClose) * 100 : Number(base.dp);
+
+        const liveQuote = { ...base, c: p, d, dp, t: timestamp || Date.now() };
+        state.lastTrade[symbol] = liveQuote;
+        renderQuote(symbol, liveQuote, "Trade");
+      }
+
+      async function fetchQuote(symbol) {
+        const url = `${API_BASE}/quote?symbol=${encodeURIComponent(symbol)}&token=${encodeURIComponent(state.apiKey)}`;
+        const response = await fetch(url, { cache: "no-store" });
+
+        if (response.status === 429) throw new Error("Finnhub rate limit reached. Try again shortly.");
+        if (!response.ok) throw new Error(`Quote request failed (${response.status}).`);
+
+        const data = await response.json();
+        if (!data || Number(data.c) === 0) {
+          throw new Error(`No quote returned for ${symbol}. Check the API key and data access.`);
+        }
+        return data;
+      }
+
+      async function refreshQuotes() {
+        if (!state.apiKey || state.refreshing) return;
+
+        state.refreshing = true;
+        document.getElementById("refreshBtn").disabled = true;
+        setError("");
+
+        try {
+          const results = await Promise.allSettled(STOCKS.map(s => fetchQuote(s.symbol)));
+          let successes = 0;
+          const errors = [];
+
+          results.forEach((result, i) => {
+            const symbol = STOCKS[i].symbol;
+            if (result.status === "fulfilled") {
+              state.quotes[symbol] = result.value;
+              renderQuote(symbol, result.value, "Quote");
+              successes++;
+            } else {
+              errors.push(result.reason?.message || `${symbol} failed`);
+            }
+          });
+
+          if (!successes) throw new Error(errors[0] || "Unable to load quotes.");
+          if (errors.length) setError(errors.join(" "));
+
+          lastRefresh.textContent = `Full quote refresh: ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}`;
+        } catch (err) {
+          setError(err.message || "Unable to refresh quotes.");
+        } finally {
+          state.refreshing = false;
+          document.getElementById("refreshBtn").disabled = false;
+        }
+      }
+
+      function startAutoRefresh() {
+        clearInterval(state.refreshTimer);
+        state.refreshTimer = setInterval(refreshQuotes, 60000);
+      }
+
+      function disconnectSocket() {
+        clearTimeout(state.reconnectTimer);
+        state.reconnectTimer = null;
+        if (state.socket) {
+          state.socket.onclose = null;
+          state.socket.close();
+          state.socket = null;
+        }
+      }
+
+      function connectSocket() {
+        if (!state.apiKey) return;
+
+        disconnectSocket();
+        setConnection("Connecting live feed…", "warn");
+
+        const ws = new WebSocket(`wss://ws.finnhub.io?token=${encodeURIComponent(state.apiKey)}`);
+        state.socket = ws;
+
+        ws.onopen = () => {
+          state.reconnectAttempts = 0;
+          setConnection("Live stream connected", "live");
+          STOCKS.forEach(s => ws.send(JSON.stringify({ type: "subscribe", symbol: s.symbol })));
+        };
+
+        ws.onmessage = event => {
+          try {
+            const msg = JSON.parse(event.data);
+            if (msg.type === "trade" && Array.isArray(msg.data)) {
+              const newest = {};
+              for (const trade of msg.data) {
+                if (STOCKS.some(s => s.symbol === trade.s)) newest[trade.s] = trade;
+              }
+              Object.values(newest).forEach(t => renderTrade(t.s, t.p, t.t));
+            } else if (msg.type === "error") {
+              setError(msg.msg || "Finnhub live-stream error.");
+            }
+          } catch (_) {}
+        };
+
+        ws.onerror = () => {
+          setConnection("Live stream issue", "warn");
+        };
+
+        ws.onclose = () => {
+          if (!state.apiKey) return;
+          setConnection("Reconnecting live feed…", "warn");
+          const delay = Math.min(30000, 1500 * Math.pow(2, state.reconnectAttempts++));
+          state.reconnectTimer = setTimeout(connectSocket, delay);
+        };
+      }
+
+      function openModal() {
+        apiKeyInput.value = state.apiKey;
+        modal.classList.add("open");
+        setTimeout(() => apiKeyInput.focus(), 50);
+      }
+
+      function closeModal() {
+        modal.classList.remove("open");
+      }
+
+      function saveKey() {
+        const key = apiKeyInput.value.trim();
+        if (!key) {
+          setError("Enter a Finnhub API key first.");
+          return;
+        }
+        state.apiKey = key;
+        localStorage.setItem(STORAGE_KEY, key);
+        closeModal();
+        setError("");
+        refreshQuotes();
+        connectSocket();
+        startAutoRefresh();
+      }
+
+      function clearKey() {
+        localStorage.removeItem(STORAGE_KEY);
+        state.apiKey = "";
+        apiKeyInput.value = "";
+        disconnectSocket();
+        clearInterval(state.refreshTimer);
+        state.refreshTimer = null;
+        setConnection("API key needed");
+        lastRefresh.textContent = "No quote refresh yet";
+        setError("");
+        STOCKS.forEach(s => {
+          const symbol = s.symbol;
+          document.getElementById(`price-${symbol}`).textContent = "—";
+          document.getElementById(`change-${symbol}`).textContent = "—";
+          document.getElementById(`pct-${symbol}`).textContent = "—";
+          ["open", "high", "low", "prev"].forEach(id => document.getElementById(`${id}-${symbol}`).textContent = "—");
+          document.getElementById(`updated-${symbol}`).textContent = "Waiting for data";
+        });
+      }
+
+      document.getElementById("settingsBtn").addEventListener("click", openModal);
+      document.getElementById("refreshBtn").addEventListener("click", refreshQuotes);
+      document.getElementById("saveKeyBtn").addEventListener("click", saveKey);
+      document.getElementById("clearKeyBtn").addEventListener("click", clearKey);
+
+      apiKeyInput.addEventListener("keydown", e => {
+        if (e.key === "Enter") saveKey();
+        if (e.key === "Escape") closeModal();
+      });
+
+      modal.addEventListener("click", e => {
+        if (e.target === modal && state.apiKey) closeModal();
+      });
+
+      renderCards();
+      updateMarketState();
+      setInterval(updateMarketState, 30000);
+
+      if (state.apiKey) {
+        refreshQuotes();
+        connectSocket();
+
+        // Refresh session OHLC/change values every 60 seconds.
+        // The live displayed price itself is maintained by WebSocket trades.
+        startAutoRefresh();
+      } else {
+        openModal();
+      }
+
+      // Browsers can sleep background tabs. Refresh/reconnect after returning.
+      document.addEventListener("visibilitychange", () => {
+        if (!document.hidden && state.apiKey) {
+          refreshQuotes();
+          if (!state.socket || state.socket.readyState > 1) connectSocket();
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
